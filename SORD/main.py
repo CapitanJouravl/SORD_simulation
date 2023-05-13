@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 import numpy as np
+import math as mth
 from numpy import random as rnd
 from random import randrange
 
@@ -23,28 +24,44 @@ def signal(SignalType, Angle, Dist, DistX, DistY):
     df = 1/fd
     t = np.arange(0, 2, df)
     if SignalType == 'Ам':
-        print(SignalType)
+        fmod = 3
+        SigMod = np.sin(2*np.pi*fmod*t)
+        SigStart = np.sin(2*np.pi*f*t)
+        sig = SigStart*SigMod
     elif SignalType == 'Шум':
         sig = rnd.randn(t.size)
     elif SignalType == 'Гармонический':
         sig = np.sin(2*np.pi*f*t)
 
 def target(TargetType, SignalType, Angle, Dist):
+    #print(Angle)
+    #print(Dist)
+    COS = mth.cos(int(Angle)*np.pi/180)
+    print(COS)
     DistX = []
     DistX.append(0)
     DistY = []
     DistY.append(0)
-    if TargetType == '':
+    DX1 = Dist * COS
+    DY1 = Dist * mth.sin(int(Angle)*np.pi/180)
+    if TargetType == 'Пл':
         for i in range(1, 7):
             DistX.append(DistX[i-1]+randrange(5, 20))
             DistY.append(randrange(-5, 5))
-    if TargetType == '':
+    if TargetType == 'Имитатор':
         for i in range(1, 7):
             DistX.append(DistX[i-1]+randrange(5, 20))
-    if TargetType == '':
-        for i in range(1, 7):
+            DistY.append(0)
+    if TargetType == 'Облако':
+        for i in range(1, 15):
             DistX.append(randrange(-50, 60))
             DistY.append(randrange(-40, 50))
+    for j in range(len(DistX)):
+        DistX[j] = DistX[j]*mth.cos(int(Angle)*np.pi/180)-DistY[j]*mth.sin(int(Angle)*np.pi/180)
+        DistY[j] = DistX[j]*mth.sin(int(Angle)*np.pi/180)+DistY[j]*mth.cos(int(Angle)*np.pi/180)
+        DX[j] = DX1 + DistX[j]
+        DY[j] = DY1 + DistY[j]
+    print(DX)
     signal(SignalType, Angle, Dist, DistX, DistY)
 
 def risovalka():
