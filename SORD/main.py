@@ -18,9 +18,9 @@ btns = [['Заданные Параметры', 'Полученные Парам
         ['Дистанция', '0', '6']
         ]
 
-def signal(SignalType, Angle, Dist, DistX, DistY):
+def signal(SignalType, AngleT, DistT):
     f = 5000
-    fd = 16000
+    fd = 60000
     df = 1/fd
     t = np.arange(0, 2, df)
     if SignalType == 'Ам':
@@ -36,14 +36,19 @@ def signal(SignalType, Angle, Dist, DistX, DistY):
 def target(TargetType, SignalType, Angle, Dist):
     #print(Angle)
     #print(Dist)
-    COS = mth.cos(int(Angle)*np.pi/180)
-    print(COS)
     DistX = []
     DistX.append(0)
     DistY = []
     DistY.append(0)
-    DX1 = Dist * COS
-    DY1 = Dist * mth.sin(int(Angle)*np.pi/180)
+    DX1 = float(Dist) * mth.cos(int(Angle)*np.pi/180)
+    DY1 = float(Dist) * mth.sin(int(Angle)*np.pi/180)
+    DX1 = int(DX1)
+    DY1 = int(DY1)
+    #print(DX1)
+    DX = []
+    DY = []
+    DistT = []
+    AngleT = []
     if TargetType == 'Пл':
         for i in range(1, 7):
             DistX.append(DistX[i-1]+randrange(5, 20))
@@ -56,13 +61,18 @@ def target(TargetType, SignalType, Angle, Dist):
         for i in range(1, 15):
             DistX.append(randrange(-50, 60))
             DistY.append(randrange(-40, 50))
-    for j in range(len(DistX)):
+    for j in range(1,len(DistX)):
         DistX[j] = DistX[j]*mth.cos(int(Angle)*np.pi/180)-DistY[j]*mth.sin(int(Angle)*np.pi/180)
         DistY[j] = DistX[j]*mth.sin(int(Angle)*np.pi/180)+DistY[j]*mth.cos(int(Angle)*np.pi/180)
-        DX[j] = DX1 + DistX[j]
-        DY[j] = DY1 + DistY[j]
+        DX.append(int(DX1) + int(DistX[j]))
+        DY.append(DY1 + DistY[j])
+        DistT.append(mth.sqrt((int(DX1) + int(DistX[j]))**2+(int(DY1) + int(DistY[j]))**2))
+        AngleT.append(mth.degrees(mth.atan((DY1 + DistY[j])/(DX1 + DistX[j]))))
     print(DX)
-    signal(SignalType, Angle, Dist, DistX, DistY)
+    print(DY)
+    print(DistT)
+    print(AngleT)
+    signal(SignalType, AngleT, DistT)
 
 def risovalka():
     print('Иди остальное доделывай')
