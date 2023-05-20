@@ -17,12 +17,27 @@ btns = [['Заданные Параметры', 'Полученные Парам
         ['Угол прихода', '0', '5'],
         ['Дистанция', '0', '6']
         ]
-
 def signal(SignalType, AngleT, DistT):
+    c = 1500
+    M = 20
+    m = np.arange(M-1, -1, -1)
+    #print(m)
     f = 5000
     fd = 60000
     df = 1/fd
-    t = np.arange(0, 2, df)
+    t = np.arange(0, 3, df) # длительность всего тракта
+    ts = np.arange(0, 0.2, df) #длительность сигнала
+    Tau = []
+    #Создание массива массивов задержек
+    for i in range(len(DistT)):
+        Tau2 = []
+        Tau1 = np.sin(np.deg2rad(AngleT[i])) * DistT[i] / c
+        for j in range(len(m)):
+            Tau2.append(m[j] * Tau1)
+        Tau.append(Tau2)
+    #print(Tau)
+
+    sig = []
     if SignalType == 'Ам':
         fmod = 3
         SigMod = np.sin(2*np.pi*fmod*t)
@@ -31,7 +46,11 @@ def signal(SignalType, AngleT, DistT):
     elif SignalType == 'Шум':
         sig = rnd.randn(t.size)
     elif SignalType == 'Гармонический':
-        sig = np.sin(2*np.pi*f*t)
+        for i in range(len(DistT)):
+            sig1 = []
+            for j in range(len(m)):
+                sig1[i][j] = np.sin(2*np.pi*f*(ts-Tau[i][j]))
+            sig.append(sig1)
 
 def target(TargetType, SignalType, Angle, Dist):
     #print(Angle)
@@ -40,11 +59,8 @@ def target(TargetType, SignalType, Angle, Dist):
     DistX.append(0)
     DistY = []
     DistY.append(0)
-    DX1 = float(Dist) * mth.cos(int(Angle)*np.pi/180)
-    DY1 = float(Dist) * mth.sin(int(Angle)*np.pi/180)
-    DX1 = int(DX1)
-    DY1 = int(DY1)
-    #print(DX1)
+    DX1 = int(float(Dist) * mth.cos(int(Angle)*np.pi/180))
+    DY1 = int(float(Dist) * mth.sin(int(Angle)*np.pi/180))
     DX = []
     DY = []
     DistT = []
@@ -54,8 +70,8 @@ def target(TargetType, SignalType, Angle, Dist):
             DistX.append(DistX[i-1]+randrange(5, 20))
             DistY.append(randrange(-5, 5))
     if TargetType == 'Имитатор':
-        for i in range(1, 7):
-            DistX.append(DistX[i-1]+randrange(5, 20))
+        for i in range(1, 3):
+            DistX.append(DistX[i-1]+randrange(15, 30))
             DistY.append(0)
     if TargetType == 'Облако':
         for i in range(1, 15):
@@ -64,14 +80,15 @@ def target(TargetType, SignalType, Angle, Dist):
     for j in range(1,len(DistX)):
         DistX[j] = DistX[j]*mth.cos(int(Angle)*np.pi/180)-DistY[j]*mth.sin(int(Angle)*np.pi/180)
         DistY[j] = DistX[j]*mth.sin(int(Angle)*np.pi/180)+DistY[j]*mth.cos(int(Angle)*np.pi/180)
-        DX.append(int(DX1) + int(DistX[j]))
+        DX.append(DX1 + DistX[j])
         DY.append(DY1 + DistY[j])
         DistT.append(mth.sqrt((int(DX1) + int(DistX[j]))**2+(int(DY1) + int(DistY[j]))**2))
         AngleT.append(mth.degrees(mth.atan((DY1 + DistY[j])/(DX1 + DistX[j]))))
-    print(DX)
-    print(DY)
-    print(DistT)
-    print(AngleT)
+    ###
+    #print(DX)
+    #print(DY)
+    #print(DistT)
+    #print(AngleT)
     signal(SignalType, AngleT, DistT)
 
 def risovalka():
