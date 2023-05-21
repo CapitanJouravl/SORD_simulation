@@ -40,17 +40,27 @@ def signal(SignalType, AngleT, DistT):
     sig = []
     if SignalType == 'Ам':
         fmod = 3
-        SigMod = np.sin(2*np.pi*fmod*t)
-        SigStart = np.sin(2*np.pi*f*t)
-        sig = SigStart*SigMod
-    elif SignalType == 'Шум':
-        sig = rnd.randn(t.size)
+        SigMod = np.sin(2*np.pi*fmod*ts)
+        for i in range(len(DistT)):
+            sig1 = []
+            sig2 = []
+            for j in range(len(m)):
+                sig1= np.sin(2*np.pi*f*(ts-Tau[i][j]))
+                sig1 = sig1 * SigMod
+                sig2 = [[sig2],
+                        [sig1]]
+            sig= [sig, [sig2]]
+
     elif SignalType == 'Гармонический':
         for i in range(len(DistT)):
             sig1 = []
+            sig2 = []
             for j in range(len(m)):
-                sig1[i][j] = np.sin(2*np.pi*f*(ts-Tau[i][j]))
-            sig.append(sig1)
+                sig1= np.sin(2*np.pi*f*(ts-Tau[i][j]))
+                sig2 = [[sig2],
+                        [sig1]]
+            sig= [sig, [sig2]]
+    print(sig)
 
 def target(TargetType, SignalType, Angle, Dist):
     #print(Angle)
@@ -124,7 +134,7 @@ for i in range(len(btns)):
                      width=35, height=1).place(y = 410+(i+1)*60, x = 400)
         elif btns[i][j] == '1':
             Sbox = ttk.Combobox(win, state = ('readonly'),
-                                values=['Ам','Шум','Гармонический'])
+                                values=['Ам','Гармонический'])
             Sbox.place(y = 410+(i+1)*50, x = j*200)
         elif btns[i][j] == '2':
             Tbox = ttk.Combobox(win, state = ('readonly'),
