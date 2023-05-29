@@ -24,9 +24,8 @@ def signal(SignalType, AngleT, DistT):
     #print(m)
     f = 5000
     fd = 60000
-    df = 1/fd
-    t = np.arange(0, 3, df) # длительность всего тракта
-    ts = np.arange(0, 0.2, df) #длительность сигнала
+    dt = 1/fd
+    ts = np.arange(0, 0.2, dt) #длительность сигнала
     Tau = []
     #Создание массива массивов задержек
     for i in range(len(DistT)):
@@ -37,30 +36,48 @@ def signal(SignalType, AngleT, DistT):
         Tau.append(Tau2)
     #print(Tau)
 
-    sig = []
-    if SignalType == 'Ам':
-        fmod = 3
-        SigMod = np.sin(2*np.pi*fmod*ts)
-        for i in range(len(DistT)):
-            sig1 = []
-            sig2 = []
-            for j in range(len(m)):
-                sig1= np.sin(2*np.pi*f*(ts-Tau[i][j]))
-                sig1 = sig1 * SigMod
-                sig2 = [[sig2],
-                        [sig1]]
-            sig= [sig, [sig2]]
+    sig = np.array(np.zeros(len(ts)))
+    ### не используется, будет добавлено в DLC ##########
+    if SignalType == 'Ам':                            ###
+        fmod = 3                                      ###
+        SigMod = np.sin(2*np.pi*fmod*ts)              ###
+        for i in range(len(DistT)):                   ###
+            sig1 = []                                 ###
+            sig2 = []                                 ###
+            for j in range(len(m)):                   ###
+                sig1= np.sin(2*np.pi*f*(ts-Tau[i][j]))###
+                sig1 = sig1 * SigMod                  ###
+                sig2 = [[sig2],                       ###
+                        [sig1]]                       ###
+            sig= [sig, [sig2]]                        ###
+    #####################################################
 
     elif SignalType == 'Гармонический':
         for i in range(len(DistT)):
-            sig1 = []
-            sig2 = []
+            sig1 = np.array([])
+            sig2 = np.array(np.zeros(len(ts)))
             for j in range(len(m)):
                 sig1= np.sin(2*np.pi*f*(ts-Tau[i][j]))
-                sig2 = [[sig2],
-                        [sig1]]
-            sig= [sig, [sig2]]
-    print(sig)
+                sig2 = sig2+sig1# суммированные сигналы от одной цели с разными задержками
+                #sig2 = np.sum(sig2, axis=0)
+            #print(sig2)
+            sig= sig+sig2# суммированные сигналы от целей с задержками
+    #print(sig)
+
+    t = np.arange(0,3,dt)
+    SNoise = np.random.normal(size = t.size)  # длительность всего тракта с шумом
+    SigSTART = int(round(((2 * np.min(DistT) / c) / dt), 0))# время в момент прихода сигнала
+    #print(SigSTART)
+    SigEND = int(SigSTART + ts.size - 1)# время в момент прекращения сигнала
+    print(SigEND)
+
+    a = 0
+    #Формирование полного тракта с добавлением сигнала после отражения от цели
+    for i in range(SigSTART, SigEND + 1):
+        SNoise[i] = SNoise[i] + sig[a]
+        a = a+1
+    print(SNoise)
+
 
 def target(TargetType, SignalType, Angle, Dist):
     #print(Angle)
@@ -134,7 +151,7 @@ for i in range(len(btns)):
                      width=35, height=1).place(y = 410+(i+1)*60, x = 400)
         elif btns[i][j] == '1':
             Sbox = ttk.Combobox(win, state = ('readonly'),
-                                values=['Ам','Гармонический'])
+                                values=['Гармонический'])#'Ам', можно вернуть, но я не знаю зачем, если обработки будут одинаковыми
             Sbox.place(y = 410+(i+1)*50, x = j*200)
         elif btns[i][j] == '2':
             Tbox = ttk.Combobox(win, state = ('readonly'),
