@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 import numpy as np
 import math as mth
-from numpy import random as rnd
+import matplotlib.pyplot as plt
 from random import randrange
 
 win = tk.Tk()
@@ -36,7 +36,7 @@ def signal(SignalType, AngleT, DistT):
         Tau.append(Tau2)
     #print(Tau)
 
-    sig = np.array(np.zeros(len(ts)))
+        sig = np.zeros((len(m), len(ts)), dtype= int)
     ### не используется, будет добавлено в DLC ##########
     if SignalType == 'Ам':                            ###
         fmod = 3                                      ###
@@ -54,14 +54,11 @@ def signal(SignalType, AngleT, DistT):
 
     elif SignalType == 'Гармонический':
         for i in range(len(DistT)):
-            sig1 = np.array([])
-            sig2 = np.array(np.zeros(len(ts)))
+            sig1 = np.zeros((len(m), len(ts)), dtype= int)
             for j in range(len(m)):
-                sig1= np.sin(2*np.pi*f*(ts-Tau[i][j]))
-                sig2 = sig2+sig1# суммированные сигналы от одной цели с разными задержками
-                #sig2 = np.sum(sig2, axis=0)
-            #print(sig2)
-            sig= sig+sig2# суммированные сигналы от целей с задержками
+                sig1[m] = np.sin(2*np.pi*f*(ts-Tau[i][j]))
+            #print(sig1.shape)
+            sig= sig+sig1# суммированные сигналы от целей с задержками
     #print(sig)
 
     t = np.arange(0,3,dt)
@@ -69,14 +66,23 @@ def signal(SignalType, AngleT, DistT):
     SigSTART = int(round(((2 * np.min(DistT) / c) / dt), 0))# время в момент прихода сигнала
     #print(SigSTART)
     SigEND = int(SigSTART + ts.size - 1)# время в момент прекращения сигнала
-    print(SigEND)
+    #print(SigEND)
 
     a = 0
     #Формирование полного тракта с добавлением сигнала после отражения от цели
     for i in range(SigSTART, SigEND + 1):
         SNoise[i] = SNoise[i] + sig[a]
         a = a+1
-    print(SNoise)
+    #print(SNoise)
+
+    ##Рисование грфика сигнала во временной области
+    fig = plt.figure()
+    plt.plot(t, SNoise)
+    plt.title('Сигнал на ПЭ')
+    plt.xlabel('Время, с')
+    plt.ylabel('Амплитуда сигнала')
+    plt.show()
+    ##
 
 
 def target(TargetType, SignalType, Angle, Dist):
