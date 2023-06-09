@@ -20,33 +20,31 @@ btns = [['Заданные Параметры', 'Полученные Парам
         ]
 def signal(SignalType, AngleT, DistT):
     c = 1500
-    M = 20
-    d = 0.2
+    M = 2
+    d = 1
     m = np.arange(M-1, -1, -1)
+    #print(m)
     n = 1024# количество точек бпф
     #print(m)
     f = 5000
 
-    fd = 60000
-    df = fd / n  # шаг дискретизации в частотной области
-    fn = 4900  # нижняя частота пропускания
-    fv = 5100  # верхняя частота пропускания
-    kn = int(np.round(fn / df + 1, 0))  # для нижней частоты
-    kv = int(np.round(fv / df + 1, 0))  # для верхней частоты
+    fd = 30000
     dt = 1/fd
-    fr = np.fft.fftfreq(n, d=dt)
     ts = np.arange(0, 0.2, dt) #длительность сигнала
     Tau = []
+    #print(AngleT)
+    #print(DistT)
     #Создание массива массивов задержек
     for i in range(len(DistT)):
         Tau2 = []
         Tau1 = np.sin(np.deg2rad(AngleT[i])) * DistT[i] / c
+        #print(Tau1)
         for j in range(len(m)):
             Tau2.append(m[j] * Tau1)
         Tau.append(Tau2)
     #print(Tau)
 
-    sig = np.zeros((len(m), len(ts)), dtype= int)
+    sig = np.zeros((len(m), len(ts)), dtype= float)
     ### не используется, будет добавлено в DLC ##########
     if SignalType == 'Ам':                            ###
         fmod = 3                                      ###
@@ -64,17 +62,38 @@ def signal(SignalType, AngleT, DistT):
 
     elif SignalType == 'Гармонический':
         for i in range(len(DistT)):
-            sig1 = np.zeros((len(m), len(ts)), dtype= int)
+            sig1 = np.zeros((len(m), len(ts)), dtype= float)
             for j in range(len(m)):
-                sig1[m] = np.sin(2*np.pi*f*(ts-Tau[i][j]))
-            #print(sig1.shape)
+                sig1[j] = np.sin(2*np.pi*f*(ts-Tau[i][j]))
             sig= sig+sig1# суммированные сигналы от целей с задержками
-    #print(sig.shape)
+    #print(np.shape(sig))
+
+    #Определение пеленга
+    Sf1 = np.fft.fft(sig[0,:], n)
+    Sf2 = np.fft.fft(sig[1], n)
+    #print(np.shape(Sf1))
+    Sf2_comp = np.conjugate(Sf2)
+    #print(np.shape(Sf2_comp))
+    Sf = Sf1*Sf2_comp
+    C_f = np.fft.ifftshift(np.fft.ifft(Sf, n))
+    #print(np.shape(C_f))
+    Tk = np.array(np.arange(-(n-1)/2, n/2, dtype = float))
+    Nk = Tk * dt
+    #print((Tk))
+    #print(np.shape(Nk))
+    N = np.arange(0,n)
+    alphk = np.emath.arcsin(Nk * c / d)
+    #fig = plt.figure()
+    #plt.plot(alphk, C_f)
+    #plt.title('корреляционная функция')
+    #plt.xlabel('угол, град')
+    #plt.ylabel('Амплитуда сигнала')
+    #plt.show()
 
     ##Формирование массива шума
     t = np.arange(0,3,dt)
-    sNoise = np.random.normal(size = t.size)  # длительность всего тракта с шумом
-    SNoise = np.zeros((len(m), len(sNoise)), dtype=int)
+    sNoise = 0*np.random.normal(size = t.size)  # длительность всего тракта с шумом
+    SNoise = np.zeros((len(m), len(sNoise)), dtype=float)
     for i in range(len(m)):
         SNoise[i] = sNoise
     #print(SNoise.shape)
@@ -98,31 +117,35 @@ def signal(SignalType, AngleT, DistT):
     ##
 
     ##Рисование грфика сигнала во временной области
-    #Sris = np.sum(SNoise,axis = 0)
     Sris = SNoise[0]
-    fig = plt.figure()
-    plt.plot(t, Sris)
-    plt.title('Сигнал на ПЭ')
-    plt.xlabel('Время, с')
-    plt.ylabel('Амплитуда сигнала')
+    #fig = plt.figure()
+    #plt.plot(t, Sris)
+    #plt.title('Сигнал на ПЭ')
+    #plt.xlabel('Время, с')
+    #plt.ylabel('Амплитуда сигнала')
     #plt.show()
     ##
     ##Полосовой фильтр
+    Imp = np.zeros((len(m), len(t)), dtype=float)
+    T = np.zeros(len(m))
+
+    # print(np.max(SNoise[z]))
     order = 6  # порядок
     nyq = 0.5 * fd  # полоса работы фильтра
     low = 4900 / nyq  # нижняя частота среза
     high = 5100 / nyq  # верхняя частота среза
     b, a = butter(order, [low, high], btype='band')  # коеф-нт фильтра
-    sFilt = lfilter(b, a, Sris)
+    sFilt = lfilter(b, a, SNoise[0])
 
     amplitudeS = np.abs(hilbert(sFilt))
-
+    # print(np.max(amplitudeS))
     imp = np.array([])
     for i in range(0, t.size):
         if amplitudeS[i] > 0.2:
             imp = np.append(imp, 1)
         else:
             imp = np.append(imp, 0)
+    # print(np.max(imp))
 
     minUp, maxUp, k = 0, 0, 0
     arrInd = []
@@ -130,6 +153,7 @@ def signal(SignalType, AngleT, DistT):
         if imp[i] == 1:
             if maxUp == 0:
                 minUp = i
+                    #print(minUp)
 
             if minUp != 0:
                 maxUp = i
@@ -140,75 +164,23 @@ def signal(SignalType, AngleT, DistT):
                 k = k + 1
                 minUp = 0
                 maxUp = 0
+    t_p = arrInd[0][0]
+    Dist_r = t_p*dt*c/2
+    print(Dist_r)
 
-    sizeArr = np.array(arrInd).shape[0]  # кол-во строк массива
+    #fig1 = plt.figure()
+    #plt.plot(t, Imp[0])
+    #plt.title('Импульс на 1')
+    #plt.xlabel('Время, с')
+    #plt.ylabel('Амплитуда сигнала')
+    #plt.show()
 
-    if sizeArr == 1:
-        indImp = arrInd[0:2]
-    else:
-        longArrInd = np.array(arrInd)[:, 2]  # массив с длиннами импульсов
-        indImp = arrInd[np.argmax(longArrInd)][0:2]  # индексы самого длинного испульса
-    indImpReal = [np.mean(indImp) - ts.size / 2, np.mean(indImp) + ts.size / 2]
-    indMin, indMax = int(indImpReal[0]), int(indImpReal[1])
-    SS = SNoise[:, indMin: indMax]  # сигнал для дальнейшей обработки
-    #print(SNoise.shape)
-
-    N = int(round(len(ts) / n, 0))  # число тактов обработки сигнала
-    #print(N)
-    b = np.arange(-90, 90, 1) * np.pi / 180  # угол фазирования
-    #Wp = np.zeros((N, len(b)))
-    Wp = []
-    #print(Wp.shape)
-
-    for i in range(1, N):
-        iN = (i - 1) * n + 1  # начальное значение временного интервала
-        iK = i * n  # конечное значение временного интервала
-        ## обрабатываемая выборка сигнала
-        Sig = np.zeros((M, iK - iN + 1))
-        #print(Sig.shape)
-        for i in range(0, M):
-            k = 0
-            for j in range(iN, iK):
-                Sig[i][k] = SS[i][j]
-                k = k + 1
-
-        Vp = np.array([])  # отклик в такте обработки
-        sf = np.fft.fft(Sig, n, 1)
-        for j in range(0, len(b)):
-            ##Формирование массива фазирующих коэффициентов
-            T0 = d / c * np.sin(b[j])
-            T = np.arange(M, 0, -1) * T0
-            coef = np.zeros((M, n), dtype=complex)
-            for l in range(0, M):
-                coef[l] = np.exp(1j * 2 * np.pi * T[l] * fr)
-
-            sfComp = np.multiply(sf, coef)  # компенсация временных задержек
-            PK = np.sum(sfComp, axis=0)  # формирование ПК в направлении b
-            Z = np.array([])
-            ##квадрат модуля пространственного канала
-            for k in range(kn, kv):
-                Z = np.append(Z, np.absolute(PK[k]) ** 2)
-            #print(Z.shape)
-            Vp = np.append(Vp, np.sum(Z, axis=0))
-            #print(Vp.shape)
-        print(Vp)
-        Wp.append(Vp)
-        #print(Wp.shape)
-    #print(Wp.shape)
-    Wpt = np.sum(Wp, axis=0)
-    b_ris = np.arange(-90, 90, 1)  # угол фазирования
-    peleng = int(b[np.argmax(Wpt)]*180/np.pi)  # пеленг
-    print(peleng)
-
-    Wp = np.flipud(Wp)
-    fig = plt.figure()
-    plt.imshow(Wp, origin='lower',
-               extent=[-90, 90, t[indMax], t[indMin]],
-               aspect=500)
-    plt.xlabel('Градусы')
-    plt.ylabel('Время, с')
-    plt.title('Набор откликов антенны в яркостном виде')
-    plt.show()
+    #fig2 = plt.figure()
+    #plt.plot(t, Imp[1])
+    #plt.title('Импульс на 2')
+    #plt.xlabel('Время, с')
+    #plt.ylabel('Амплитуда сигнала')
+    #plt.show()
 
 
 def target(TargetType, SignalType, Angle, Dist):
