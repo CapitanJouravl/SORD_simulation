@@ -30,18 +30,19 @@ def signal(SignalType, AngleT, DistT):
 
     fd = 30000
     dt = 1/fd
-    ts = np.arange(0, 0.2, dt) #длительность сигнала
+    ts = np.arange(0, 0.02, dt) #длительность сигнала
     Tau = []
     #print(AngleT)
     #print(DistT)
     #Создание массива массивов задержек
+    Tau = np.zeros((len(DistT), len(m)))
     for i in range(len(DistT)):
         Tau2 = []
         Tau1 = np.sin(np.deg2rad(AngleT[i])) * DistT[i] / c
         #print(Tau1)
         for j in range(len(m)):
             Tau2.append(m[j] * Tau1)
-        Tau.append(Tau2)
+        Tau[i] = Tau2
     #print(Tau)
 
     sig = np.zeros((len(m), len(ts)), dtype= float)
@@ -61,34 +62,13 @@ def signal(SignalType, AngleT, DistT):
     #####################################################
 
     elif SignalType == 'Гармонический':
-        for i in range(len(DistT)):
-            sig1 = np.zeros((len(m), len(ts)), dtype= float)
-            for j in range(len(m)):
-                sig1[j] = np.sin(2*np.pi*f*(ts-Tau[i][j]))
-            sig= sig+sig1# суммированные сигналы от целей с задержками
+        sig = np.sin(2 * np.pi * f * ts)
+        #for i in range(len(DistT)):
+        #    sig1 = np.zeros((len(m), len(ts)), dtype= float)
+        #    for j in range(len(m)):
+        #        sig1[j] = np.sin(2*np.pi*f*(ts-Tau[i][j]))
+        #    sig= sig+sig1# суммированные сигналы от целей с задержками
     #print(np.shape(sig))
-
-    #Определение пеленга
-    Sf1 = np.fft.fft(sig[0,:], n)
-    Sf2 = np.fft.fft(sig[1], n)
-    #print(np.shape(Sf1))
-    Sf2_comp = np.conjugate(Sf2)
-    #print(np.shape(Sf2_comp))
-    Sf = Sf1*Sf2_comp
-    C_f = np.fft.ifftshift(np.fft.ifft(Sf, n))
-    #print(np.shape(C_f))
-    Tk = np.array(np.arange(-(n-1)/2, n/2, dtype = float))
-    Nk = Tk * dt
-    #print((Tk))
-    #print(np.shape(Nk))
-    N = np.arange(0,n)
-    alphk = np.emath.arcsin(Nk * c / d)
-    #fig = plt.figure()
-    #plt.plot(alphk, C_f)
-    #plt.title('корреляционная функция')
-    #plt.xlabel('угол, град')
-    #plt.ylabel('Амплитуда сигнала')
-    #plt.show()
 
     ##Формирование массива шума
     t = np.arange(0,3,dt)
@@ -98,89 +78,96 @@ def signal(SignalType, AngleT, DistT):
         SNoise[i] = sNoise
     #print(SNoise.shape)
     ##
-
-    ## Нахождение первого и последнего отсчетов тракта, в которые пришел сигнал
-    SigSTART = int(round(((2 * np.min(DistT) / c) / dt), 0))# время в момент прихода сигнала
-    #print(SigSTART)
-    SigEND = int(SigSTART + ts.size - 1)# время в момент прекращения сигнала
-    #print(SigEND)
+    #print(Tau)
+    ## Нахождение первого и последнего отсчетов тракта, в которые пришли сигналы
+    SigSTART = np.zeros((len(m), len(DistT)), dtype = int)
+    SigEND = np.zeros((len(m), len(DistT)), dtype = int)
+    for i in range(len(DistT)):
+        SigSTART[0][i] = int(round(((2 * DistT[i] / c) / dt), 0))# время в момент прихода сигнала на первом элементе
+        SigSTART[1][i] = SigSTART[0][i]+int(Tau[i][0]/dt)# время в момент прихода сигнала на втором элементе
+        #print(SigSTART)
+        SigEND[0][i] = int(SigSTART[0][i] + ts.size - 1)# время в момент прекращения сигнала на первом элементе
+        SigEND[1][i] = int(SigSTART[1][i] + ts.size - 1)# время в момент прекращения сигнала на втором элементе
+    print(SigSTART)
+    print(SigEND)
     ##
 
     ##Формирование полного тракта с добавлением сигнала после отражения от цели
     for i in range(len(m)):
-        a = 0
-        for j in range(SigSTART, SigEND + 1):
-            SNoise[i][j] = SNoise[i][j] + sig[i][a]
-            a = a+1
+        for k in range(len(DistT)):
+            a = 0
+            for j in range(SigSTART[i][k], SigEND[i][k] + 1):
+                SNoise[i][j] = SNoise[i][j] + sig[a]
+                a = a+1
     #print(SNoise.shape)
     #print(SNoise)
     ##
 
     ##Рисование грфика сигнала во временной области
     Sris = SNoise[0]
-    #fig = plt.figure()
-    #plt.plot(t, Sris)
-    #plt.title('Сигнал на ПЭ')
-    #plt.xlabel('Время, с')
-    #plt.ylabel('Амплитуда сигнала')
-    #plt.show()
+    fig = plt.figure()
+    plt.plot(t, Sris)
+    plt.title('Сигнал на ПЭ')
+    plt.xlabel('Время, с')
+    plt.ylabel('Амплитуда сигнала')
+    plt.show()
     ##
-    ##Полосовой фильтр
-    Imp = np.zeros((len(m), len(t)), dtype=float)
-    T = np.zeros(len(m))
+    Imp = np.zeros((len(m), len(t)))
+    for j in range(len(m)):
+        ##Полосовой фильтр
+        order = 6  # порядок
+        nyq = 0.5 * fd  # полоса работы фильтра
+        low = 4900 / nyq  # нижняя частота среза
+        high = 5100 / nyq  # верхняя частота среза
+        b, a = butter(order, [low, high], btype='band')  # коеф-нт фильтра
+        sFilt = lfilter(b, a, SNoise[j])
 
-    # print(np.max(SNoise[z]))
-    order = 6  # порядок
-    nyq = 0.5 * fd  # полоса работы фильтра
-    low = 4900 / nyq  # нижняя частота среза
-    high = 5100 / nyq  # верхняя частота среза
-    b, a = butter(order, [low, high], btype='band')  # коеф-нт фильтра
-    sFilt = lfilter(b, a, SNoise[0])
+        amplitudeS = np.abs(hilbert(sFilt))
+        # print(np.max(amplitudeS))
+        imp = np.array([])
+        for i in range(0, t.size):
+            if amplitudeS[i] > 0.2:
+                imp = np.append(imp, 1)
+            else:
+                imp = np.append(imp, 0)
+        # print(np.max(imp))
+        Imp[j] = imp
 
-    amplitudeS = np.abs(hilbert(sFilt))
-    # print(np.max(amplitudeS))
-    imp = np.array([])
-    for i in range(0, t.size):
-        if amplitudeS[i] > 0.2:
-            imp = np.append(imp, 1)
-        else:
-            imp = np.append(imp, 0)
-    # print(np.max(imp))
+        minUp, maxUp, k = 0, 0, 0
+        arrInd = []
+        for i in range(0, t.size):
+            if imp[i] == 1:
+                if maxUp == 0:
+                    minUp = i
+                        #print(minUp)
 
-    minUp, maxUp, k = 0, 0, 0
-    arrInd = []
-    for i in range(0, t.size):
-        if imp[i] == 1:
-            if maxUp == 0:
-                minUp = i
-                    #print(minUp)
-
-            if minUp != 0:
-                maxUp = i
-        else:
-            if (minUp != 0) and (maxUp != 0):
-                # arrInd [мин. индекс, макс. индекс, кол-во отсчетов импульса]
-                arrInd.append([minUp, maxUp, maxUp - minUp])
-                k = k + 1
-                minUp = 0
-                maxUp = 0
+                if minUp != 0:
+                    maxUp = i
+            else:
+                if (minUp != 0) and (maxUp != 0):
+                    # arrInd [мин. индекс, макс. индекс, кол-во отсчетов импульса]
+                    arrInd.append([minUp, maxUp, maxUp - minUp])
+                    k = k + 1
+                    minUp = 0
+                    maxUp = 0
     t_p = arrInd[0][0]
     Dist_r = t_p*dt*c/2
     print(Dist_r)
+    print(k)
 
-    #fig1 = plt.figure()
-    #plt.plot(t, Imp[0])
-    #plt.title('Импульс на 1')
-    #plt.xlabel('Время, с')
-    #plt.ylabel('Амплитуда сигнала')
-    #plt.show()
+    fig1 = plt.figure()
+    plt.plot(t, Imp[0])
+    plt.title('Импульс на 1')
+    plt.xlabel('Время, с')
+    plt.ylabel('Амплитуда сигнала')
+    plt.show()
 
-    #fig2 = plt.figure()
-    #plt.plot(t, Imp[1])
-    #plt.title('Импульс на 2')
-    #plt.xlabel('Время, с')
-    #plt.ylabel('Амплитуда сигнала')
-    #plt.show()
+    fig2 = plt.figure()
+    plt.plot(t, Imp[1])
+    plt.title('Импульс на 2')
+    plt.xlabel('Время, с')
+    plt.ylabel('Амплитуда сигнала')
+    plt.show()
 
 
 def target(TargetType, SignalType, Angle, Dist):
