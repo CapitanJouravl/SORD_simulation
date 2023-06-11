@@ -38,7 +38,7 @@ def signal(SignalType, AngleT, DistT):
     Tau = np.zeros((len(DistT), len(m)))
     for i in range(len(DistT)):
         Tau2 = []
-        Tau1 = np.sin(np.deg2rad(AngleT[i])) * DistT[i] / c
+        Tau1 = np.sin(np.deg2rad(AngleT[i])) * d / c
         #print(Tau1)
         for j in range(len(m)):
             Tau2.append(m[j] * Tau1)
@@ -78,7 +78,7 @@ def signal(SignalType, AngleT, DistT):
         SNoise[i] = sNoise
     #print(SNoise.shape)
     ##
-    #print(Tau)
+
     ## Нахождение первого и последнего отсчетов тракта, в которые пришли сигналы
     SigSTART = np.zeros((len(m), len(DistT)), dtype = int)
     SigEND = np.zeros((len(m), len(DistT)), dtype = int)
@@ -88,8 +88,8 @@ def signal(SignalType, AngleT, DistT):
         #print(SigSTART)
         SigEND[0][i] = int(SigSTART[0][i] + ts.size - 1)# время в момент прекращения сигнала на первом элементе
         SigEND[1][i] = int(SigSTART[1][i] + ts.size - 1)# время в момент прекращения сигнала на втором элементе
-    print(SigSTART)
-    print(SigEND)
+    #print(SigSTART)
+    #print(SigEND)
     ##
 
     ##Формирование полного тракта с добавлением сигнала после отражения от цели
@@ -104,16 +104,19 @@ def signal(SignalType, AngleT, DistT):
     ##
 
     ##Рисование грфика сигнала во временной области
-    Sris = SNoise[0]
-    fig = plt.figure()
-    plt.plot(t, Sris)
-    plt.title('Сигнал на ПЭ')
-    plt.xlabel('Время, с')
-    plt.ylabel('Амплитуда сигнала')
-    plt.show()
+    #Sris = SNoise[0]
+    #fig = plt.figure()
+    #plt.plot(t, Sris)
+    #plt.title('Сигнал на ПЭ')
+    #plt.xlabel('Время, с')
+    #plt.ylabel('Амплитуда сигнала')
+    #plt.show()
     ##
+    Imp_Start = []
     Imp = np.zeros((len(m), len(t)))
+    K = np.zeros(len(m))
     for j in range(len(m)):
+        imp_Start = []
         ##Полосовой фильтр
         order = 6  # порядок
         nyq = 0.5 * fd  # полоса работы фильтра
@@ -148,12 +151,33 @@ def signal(SignalType, AngleT, DistT):
                     # arrInd [мин. индекс, макс. индекс, кол-во отсчетов импульса]
                     arrInd.append([minUp, maxUp, maxUp - minUp])
                     k = k + 1
+                    imp_Start.append(minUp)
                     minUp = 0
                     maxUp = 0
-    t_p = arrInd[0][0]
+        Imp_Start.append(imp_Start)
+        K[j] = k
+    #print(Imp_Start)
+    ##Определение дистанции
+    t_p = Imp_Start[0][0]
     Dist_r = t_p*dt*c/2
-    print(Dist_r)
-    print(k)
+    #print(Dist_r)
+
+    ##Определение пеленга
+    Tau_ras = (Imp_Start[1][0] - Imp_Start[0][0])*dt
+    #print(Tau_ras)
+    peleng = np.rad2deg(np.arcsin(Tau_ras*c/d))
+    #print(peleng)
+
+    ##Определение типа цели
+    #print(np.min(K))
+    #print(np.max(SNoise[0]))
+    if np.min(K)<=3 and np.max(SNoise[0])>1:
+        Target = 'Подводная лодка'
+    if np.min(K)==3 and np.max(SNoise[0])<1:
+        Target = 'Имитатор'
+    if np.min(K)>3 and np.max(SNoise[0])>1:
+        Target = 'Облако обломков'
+    #print(Target)
 
     fig1 = plt.figure()
     plt.plot(t, Imp[0])
