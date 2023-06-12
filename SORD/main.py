@@ -10,7 +10,7 @@ win = tk.Tk()
 win.title('Антенна')
 win.geometry('700x750')
 
-frm = tk.Frame(win, width = 700, height = 400, bg = 'gray').place(y = 0, x = 0)
+frm = tk.Frame(win, width = 700, height = 400, bg = 'black').place(y = 0, x = 0)
 
 btns = [['Заданные Параметры', 'Полученные Параметры', 'Старт'],
         ['Тип сигнала', '1', '3'],
@@ -18,6 +18,51 @@ btns = [['Заданные Параметры', 'Полученные Парам
         ['Угол прихода', '0', '5'],
         ['Дистанция', '0', '6']
         ]
+
+def risovalka(peleng, Target, Dist_r):
+    for i in range(len(btns)):
+        for j in range(len(btns[i])):
+            if btns[i][j] == '3' :
+                tk.Label(text='Гармонический',
+                         font=('Timews New Roman', 10, 'bold'),
+                         width=25, height=1).place(y=410 + (i + 1) * 50, x=(j) * 200)
+            elif btns[i][j] == '4' :
+                tk.Label(text=Target,
+                         font=('Timews New Roman', 10, 'bold'),
+                         width=25, height=1).place(y=410 + (i + 1) * 50, x=(j) * 200)
+            elif btns[i][j] == '5' :
+                tk.Label(text=peleng,
+                         font=('Timews New Roman', 10, 'bold'),
+                         width=20, height=1).place(y=410 + (i + 1) * 50, x=(j) * 200)
+            elif btns[i][j] == '6':
+                tk.Label(text=Dist_r,
+                         font=('Timews New Roman', 10, 'bold'),
+                         width=20, height=1).place(y=410 + (i + 1) * 50, x=(j) * 200)
+
+    canvas = tk.Canvas(width=700, height=400, bg='black')
+    canvas.place(x=0, y=0)
+    # Координаты гидролокатора
+    x1_gidr = 345
+    x2_gidr = 355
+    y1_gidr = 195
+    y2_gidr = 205
+    canvas.create_oval([x1_gidr, y1_gidr], [x2_gidr, y2_gidr], fill='green')
+
+    TargetR_x = np.sin(np.deg2rad(peleng)) * Dist_r/6
+    TargetR_y = np.cos(np.deg2rad(peleng)) * Dist_r/6
+    x1_tar = (x1_gidr + TargetR_x)
+    y1_tar = (y1_gidr - TargetR_y)
+    x2_tar = (x2_gidr + TargetR_x)
+    y2_tar = (y2_gidr - TargetR_y)
+    print(TargetR_x, TargetR_y)
+
+    if Target == 'Подводная лодка':
+        canvas.create_rectangle(x1_tar, y1_tar, x2_tar, y2_tar, fill = 'red')
+    elif Target == 'Имитатор':
+        canvas.create_oval(x1_tar, y1_tar, x2_tar, y2_tar, fill = 'blue')
+    elif Target == 'Облако обломков':
+        canvas.create_oval(x1_tar, y1_tar, x2_tar, y2_tar, fill = 'yellow')
+
 def signal(SignalType, AngleT, DistT):
     c = 1500
     M = 2
@@ -72,7 +117,7 @@ def signal(SignalType, AngleT, DistT):
 
     ##Формирование массива шума
     t = np.arange(0,3,dt)
-    sNoise = 0*np.random.normal(size = t.size)  # длительность всего тракта с шумом
+    sNoise = 0.7*np.random.normal(size = t.size)  # длительность всего тракта с шумом
     SNoise = np.zeros((len(m), len(sNoise)), dtype=float)
     for i in range(len(m)):
         SNoise[i] = sNoise
@@ -129,7 +174,7 @@ def signal(SignalType, AngleT, DistT):
         # print(np.max(amplitudeS))
         imp = np.array([])
         for i in range(0, t.size):
-            if amplitudeS[i] > 0.2:
+            if amplitudeS[i] > 0.9:
                 imp = np.append(imp, 1)
             else:
                 imp = np.append(imp, 0)
@@ -160,38 +205,48 @@ def signal(SignalType, AngleT, DistT):
     ##Определение дистанции
     t_p = Imp_Start[0][0]
     Dist_r = t_p*dt*c/2
-    #print(Dist_r)
+    #print('Дистанция до цели =', Dist_r)
 
     ##Определение пеленга
     Tau_ras = (Imp_Start[1][0] - Imp_Start[0][0])*dt
     #print(Tau_ras)
-    peleng = np.rad2deg(np.arcsin(Tau_ras*c/d))
-    #print(peleng)
+    #peLeng = np.rad2deg(np.arcsin(Tau_ras*c/d))
+    peleng = np.rad2deg(np.arcsin((SigSTART[1][0] - SigSTART[0][0])*dt*c/d))
+    #print('Пеленг цели =',peleng)
 
     ##Определение типа цели
-    #print(np.min(K))
-    #print(np.max(SNoise[0]))
-    if np.min(K)<=3 and np.max(SNoise[0])>1:
+    #print('Количество обнаруженных бликов =',np.min(K))
+    #print(np.max(amplitudeS))
+    if np.min(K)<=6 and np.max(amplitudeS)>1.5:
         Target = 'Подводная лодка'
-    if np.min(K)==3 and np.max(SNoise[0])<1:
+    if np.max(amplitudeS)<1.5:
         Target = 'Имитатор'
-    if np.min(K)>3 and np.max(SNoise[0])>1:
+    if np.min(K)>6 and np.max(amplitudeS)>1.5:
         Target = 'Облако обломков'
     #print(Target)
 
-    fig1 = plt.figure()
-    plt.plot(t, Imp[0])
-    plt.title('Импульс на 1')
-    plt.xlabel('Время, с')
-    plt.ylabel('Амплитуда сигнала')
-    plt.show()
+    #fig = plt.figure()
+    #plt.plot(t, amplitudeS)
+    #plt.title('Сигнал на ПЭ')
+    #plt.xlabel('Время, с')
+    #plt.ylabel('Амплитуда сигнала')
+    #plt.show()
 
-    fig2 = plt.figure()
-    plt.plot(t, Imp[1])
-    plt.title('Импульс на 2')
-    plt.xlabel('Время, с')
-    plt.ylabel('Амплитуда сигнала')
-    plt.show()
+    #fig1 = plt.figure()
+    #plt.plot(t, Imp[0])
+    #plt.title('Импульс на 1')
+    #plt.xlabel('Время, с')
+    #plt.ylabel('Амплитуда сигнала')
+    #plt.show()
+
+    #fig2 = plt.figure()
+    #plt.plot(t, Imp[1])
+    #plt.title('Импульс на 2')
+    #plt.xlabel('Время, с')
+    #plt.ylabel('Амплитуда сигнала')
+    #plt.show()
+
+    risovalka(peleng, Target, Dist_r)
 
 
 def target(TargetType, SignalType, Angle, Dist):
@@ -209,17 +264,19 @@ def target(TargetType, SignalType, Angle, Dist):
     AngleT = []
     if TargetType == 'Пл':
         for i in range(1, 7):
-            DistX.append(DistX[i-1]+randrange(5, 20))
+            DistX.append(DistX[i-1]+randrange(5, 15))
             DistY.append(randrange(-5, 5))
     if TargetType == 'Имитатор':
         for i in range(1, 3):
-            DistX.append(DistX[i-1]+randrange(15, 30))
+            DistX.append(DistX[i-1]+randrange(25, 30))
             DistY.append(0)
     if TargetType == 'Облако':
         for i in range(1, 15):
-            DistX.append(randrange(-50, 60))
+            DistX.append(randrange(-100, 100))
             DistY.append(randrange(-40, 50))
-    for j in range(1,len(DistX)):
+
+    #print(DistX)
+    for j in range(len(DistX)):
         DistX[j] = DistX[j]*mth.cos(int(Angle)*np.pi/180)-DistY[j]*mth.sin(int(Angle)*np.pi/180)
         DistY[j] = DistX[j]*mth.sin(int(Angle)*np.pi/180)+DistY[j]*mth.cos(int(Angle)*np.pi/180)
         DX.append(DX1 + DistX[j])
@@ -232,9 +289,6 @@ def target(TargetType, SignalType, Angle, Dist):
     #print(DistT)
     #print(AngleT)
     signal(SignalType, AngleT, DistT)
-
-def risovalka():
-    print('Иди остальное доделывай')
 
 def start():
     SignalType = Sbox.get()
@@ -276,10 +330,6 @@ for i in range(len(btns)):
             Z.append(tk.Text(font=('Timews New Roman', 10, 'bold'),
                     width=17, height=1))
             Z[-1].place(y=410 + (i + 1) * 50, x=(j) * 200)
-        elif btns[i][j] == '3' or btns[i][j] == '4' or btns[i][j] == '5' or btns[i][j] == '6':
-            tk.Label(text=btns[i][j],
-                     font=('Timews New Roman', 10, 'bold'),
-                     width=20, height=1).place(y = 410+(i+1)*50, x = (j)*200)
         elif btns[i][j] == 'Старт':
             tk.Button(text = 'Старт',
                       font=('Timews New Roman', 10, 'bold'),
